@@ -1,0 +1,60 @@
+{
+  "captures": [
+    {
+      "path": "../data/raw/mawi/train.pcap",
+      "class": "mawi",
+      "group": "mawi-date-1",
+      "split": "train"
+    },
+    {
+      "path": "../data/raw/mawi/validation.pcap",
+      "class": "mawi",
+      "group": "mawi-date-2",
+      "split": "validation",
+      "role": "calibration"
+    },
+    {
+      "path": "../data/raw/mawi/test.pcap",
+      "class": "mawi",
+      "group": "mawi-date-3",
+      "split": "test"
+    },
+    {
+      "path": "../data/raw/grn/train.pcap",
+      "class": "grn",
+      "group": "grn-session-1",
+      "split": "train",
+      "target_only": true
+    },
+    {
+      "path": "../data/raw/grn/validation.pcap",
+      "class": "grn",
+      "group": "grn-session-2",
+      "split": "validation",
+      "target_only": true,
+      "role": "calibration"
+    },
+    {
+      "path": "../data/raw/grn/test.pcap",
+      "class": "grn",
+      "group": "grn-session-3",
+      "split": "test",
+      "target_only": true
+    },
+    {
+      "path": "../data/raw/mawi/tuning.pcap",
+      "class": "mawi",
+      "group": "mawi-tuning-independent",
+      "split": "validation",
+      "role": "tuning"
+    },
+    {
+      "path": "../data/raw/grn/tuning.pcap",
+      "class": "grn",
+      "group": "grn-tuning-independent",
+      "split": "validation",
+      "role": "tuning",
+      "target_only": true
+    }
+  ]
+}

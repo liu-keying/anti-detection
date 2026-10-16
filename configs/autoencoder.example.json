@@ -1,0 +1,13 @@
+{
+  "candidates": [
+    {
+      "hidden_dims": [16, 8, 4, 8, 16],
+      "learning_rate": 0.001,
+      "weight_decay": 0.00001,
+      "max_epochs": 200,
+      "batch_size": 256,
+      "patience": 15,
+      "min_delta": 0.000001
+    }
+  ]
+}

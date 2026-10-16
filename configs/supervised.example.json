@@ -1,0 +1,44 @@
+{
+  "rf": [
+    {
+      "n_estimators": 200,
+      "max_depth": null,
+      "min_samples_leaf": 2
+    },
+    {
+      "n_estimators": 200,
+      "max_depth": 12,
+      "min_samples_leaf": 4
+    }
+  ],
+  "xgb": [
+    {
+      "n_estimators": 200,
+      "max_depth": 3,
+      "learning_rate": 0.05
+    },
+    {
+      "n_estimators": 200,
+      "max_depth": 6,
+      "learning_rate": 0.05
+    }
+  ],
+  "mlp": [
+    {
+      "hidden_layer_sizes": [
+        32,
+        16
+      ],
+      "alpha": 0.001,
+      "max_iter": 400
+    },
+    {
+      "hidden_layer_sizes": [
+        64,
+        32
+      ],
+      "alpha": 0.01,
+      "max_iter": 400
+    }
+  ]
+}

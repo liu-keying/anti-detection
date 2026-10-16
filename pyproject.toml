@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anti-detection-data"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Offline PCAP preparation for MAWI and GRN experiments"
+dependencies = ["PyYAML>=6.0.2,<7"]
+
+[project.optional-dependencies]
+ml = ["numpy>=1.26,<3", "scikit-learn>=1.5,<2", "xgboost-cpu>=2.1,<4", "joblib>=1.4,<2", "matplotlib>=3.8,<4"]
+
+ae = ["torch>=2.6,<3"]
+
+[project.scripts]
+prepare-data = "anti_detection.prepare:main"
+split-pcap = "anti_detection.split:main"
+suricata-experiment = "anti_detection.suricata:main"
+supervised-experiment = "anti_detection.supervised:main"
+ae-experiment = "anti_detection.autoencoder:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
