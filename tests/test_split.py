@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 from anti_detection.prepare import load_manifest, packets, scan
-from anti_detection.split import PARTS, assignments, split
+from anti_detection.split import PARTS, assignments, merge_manifests, split
 from test_prepare import capture
 
 
@@ -84,6 +84,31 @@ class SplitTests(unittest.TestCase):
                 split(self.args(source, root / 'out', ratios='1,1,1,1'))
             with self.assertRaisesRegex(ValueError, 'target-only'):
                 split(self.args(source, root / 'out', source_class='grn'))
+
+    # 两类分区清单合并后路径仍相对总清单可用，且不覆盖已有文件。
+    def test_merge_split_manifests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            mawi, grn = root / 'mawi.pcap', root / 'grn.pcap'
+            capture(mawi, 1, 40, flow_packets=2)
+            capture(grn, 2, 40, flow_packets=2)
+            split(self.args(mawi, root / 'mawi-split'))
+            split(self.args(grn, root / 'grn-split', source_class='grn', target_only=True))
+            combined = root / 'configs/captures.json'
+            merge_manifests(root / 'mawi-split/captures.json', root / 'grn-split/captures.json', combined)
+            rows = load_manifest(combined)
+            self.assertEqual(len(rows), 8)
+            self.assertEqual({(row['class'], row.get('role', row['split'])) for row in rows},
+                             {(source_class, part) for source_class in ('mawi', 'grn') for part in PARTS})
+            raw_rows = json.loads(combined.read_text())['captures']
+            self.assertTrue(all(not Path(row['path']).is_absolute() and
+                                (combined.parent / row['path']).is_file() for row in raw_rows))
+            with self.assertRaisesRegex(ValueError, 'output already exists'):
+                merge_manifests(root / 'mawi-split/captures.json', root / 'grn-split/captures.json', combined)
+            split(self.args(mawi, root / 'wrong-grn-split', source_class='grn', target_only=True))
+            with self.assertRaisesRegex(ValueError, 'same original PCAP'):
+                merge_manifests(root / 'mawi-split/captures.json', root / 'wrong-grn-split/captures.json',
+                                root / 'configs/invalid.json')
 
 
 if __name__ == '__main__':

@@ -96,24 +96,13 @@ split.json 保存输入哈希、排除原因、实际各分区组数／流数／
 
 ## 5. 合并 MAWI 和 GRN 清单
 
-两份输出 captures.json 的路径分别相对各自目录，合并时转换为绝对路径：
+两份输出 `captures.json` 的路径分别相对各自目录。合并命令把路径改为相对最终清单的位置，并拒绝把同一原始 PCAP 同时当作 MAWI 和 GRN：
 
 ```bash
-python - <<'PY'
-import json
-from pathlib import Path
-
-captures = []
-for manifest in (Path('data/split/mawi01/captures.json'),
-                 Path('data/split/grn01/captures.json')):
-    for item in json.loads(manifest.read_text())['captures']:
-        item['path'] = str((manifest.parent / item['path']).resolve())
-        captures.append(item)
-output = Path('configs/captures-from-split01.json')
-if output.exists():
-    raise SystemExit(f'Output already exists: {output}')
-output.write_text(json.dumps({'captures': captures}, indent=2) + '\n')
-PY
+split-pcap merge \
+  --mawi data/split/mawi01/captures.json \
+  --grn data/split/grn01/captures.json \
+  --output configs/captures-from-split01.json
 prepare-data validate configs/captures-from-split01.json
 ```
 

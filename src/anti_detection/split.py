@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 import struct
 from collections import defaultdict
 from contextlib import ExitStack
@@ -149,7 +150,35 @@ def split(args):
         warning='Derived groups are bookkeeping only, not independent captures. Time ranges can overlap. Audit business sessions before formal evaluation.'))
 
 
-# 拆分命令入口：inspect 导出连接编号，split 按自动或人工分组生成数据分区。
+# 把两类拆分结果的相对路径改写成相对总清单的路径，供后续三个实验共用。
+def merge_manifests(mawi_manifest, grn_manifest, output):
+    out = Path(output).resolve()
+    if out.exists():
+        raise ValueError(f'output already exists: {out}')
+    captures, source_hashes, seen_paths = [], {}, set()
+    for source_class, manifest in (('mawi', mawi_manifest), ('grn', grn_manifest)):
+        source = Path(manifest).resolve()
+        rows = json.loads(source.read_text())['captures']
+        if len(rows) != len(PARTS) or {row.get('role', row['split']) for row in rows} != set(PARTS):
+            raise ValueError(f'{source}: expected one capture for each of {PARTS}')
+        source_hashes[source_class] = {row.get('derived_from_sha256') for row in rows}
+        for row in rows:
+            if row['class'] != source_class:
+                raise ValueError(f'{source}: unexpected capture class {row["class"]}')
+            path = (source.parent / row['path']).resolve()
+            if not path.is_file() or path in seen_paths:
+                raise ValueError(f'missing or duplicate capture path: {path}')
+            seen_paths.add(path)
+            captures.append({**row, 'path': os.path.relpath(path, out.parent)})
+    if (source_hashes['mawi'] - {None}) & (source_hashes['grn'] - {None}):
+        raise ValueError('same original PCAP cannot supply both MAWI and GRN captures')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('x') as file:
+        json.dump({'captures': captures}, file, indent=2, ensure_ascii=False)
+        file.write('\n')
+
+
+# 拆分命令入口：inspect 导出连接编号，split 生成分区，merge 合并两类清单。
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
@@ -165,6 +194,10 @@ def main():
     runner.add_argument('--ratios', default='0.5,0.15,0.15,0.2')
     runner.add_argument('--timeout', type=positive, default=120)
     runner.add_argument('--output', required=True)
+    merger = sub.add_parser('merge', help='combine MAWI and GRN split manifests')
+    merger.add_argument('--mawi', required=True, help='MAWI captures.json produced by split')
+    merger.add_argument('--grn', required=True, help='GRN captures.json produced by split')
+    merger.add_argument('--output', required=True, help='combined captures.json for prepare-data')
     args = parser.parse_args()
     try:
         if args.command == 'inspect':
@@ -172,8 +205,10 @@ def main():
                 raise ValueError('output already exists')
             _, flows = scan(args.pcap, args.timeout)
             write_rows(args.output, flow_rows(flows))
-        else:
+        elif args.command == 'split':
             split(args)
+        else:
+            merge_manifests(args.mawi, args.grn, args.output)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         parser.exit(2, f'Error: {exc}\n')
 

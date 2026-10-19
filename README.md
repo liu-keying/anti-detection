@@ -48,7 +48,7 @@ scripts/zeek-docker.sh --version
 ## 3. 放置原始 PCAP
 
 ```bash
-mkdir -p data/raw/mawi data/raw/grn data/controls outputs
+mkdir -p data/raw/mawi data/raw/grn data/split data/controls outputs
 ```
 
 将自己的文件复制到相应目录。清单模板对应以下文件名，可修改清单适配实际名称：
@@ -69,7 +69,34 @@ data/raw/
 
 每类可包含多个日期／独立批次文件，无需合成成上述四份。保留原始文件；GRN 输入须已排除 SSH、系统更新等非目标业务。不要复制同一 PCAP 来充当不同分区。
 
+如果 MAWI 和 GRN 各只有一份未划分的经典 PCAP，可按完整双向五元组划为训练、调参、校准、测试四份。把下面的 `original.pcap` 替换为实际文件名；先确认 GRN 文件只含目标业务，再使用 `--target-only`：
+
+```bash
+split-pcap split data/raw/mawi/original.pcap \
+  --source-class mawi --ratios 0.5,0.15,0.15,0.2 \
+  --timeout 120 --output data/split/mawi01
+split-pcap split data/raw/grn/original.pcap \
+  --source-class grn --target-only \
+  --ratios 0.5,0.15,0.15,0.2 \
+  --timeout 120 --output data/split/grn01
+split-pcap merge \
+  --mawi data/split/mawi01/captures.json \
+  --grn data/split/grn01/captures.json \
+  --output configs/captures.json
+```
+
+每类输出 `train.pcap`、`tuning.pcap`、`calibration.pcap`、`test.pcap`，以及 `assignments.csv`、`split.json` 和单类 `captures.json`；合并命令生成后续步骤共用的 `configs/captures.json`。比例按连接组数分配，包数和 IP 字节比例可能不同；无法分类的报文保存在 `excluded.pcap`。命令不会覆盖已有输出。单份 PCAP 的派生分区不能证明采集批次独立；真实业务跨多个连接时，应按[业务会话映射](docs/pcap-splitting.md)分组。输入须为时间戳有序的经典 PCAP，乱序文件需要先处理。
+
 ## 4. 检查原始数据
+
+如果在步骤 3 使用了 `split-pcap`，先查看两份拆分报告的 `packet_conservation`、各分区组数和排除包数：
+
+```bash
+python -m json.tool data/split/mawi01/split.json
+python -m json.tool data/split/grn01/split.json
+```
+
+若原始文件本身已经按独立批次划好，直接检查这些文件：
 
 ```bash
 prepare-data inspect \
@@ -82,10 +109,10 @@ python -m json.tool outputs/raw-inventory01.json
 
 ## 5. 填写数据划分清单
 
-首次创建自己的清单：
+使用步骤 3 的拆分结果时，`configs/captures.json` 已生成，检查其中的路径、分区与角色即可。若原始文件已经独立分区，首次手工创建清单：
 
 ```bash
-cp configs/captures.example.json configs/captures.json
+cp -n configs/captures.example.json configs/captures.json
 nano configs/captures.json
 ```
 
@@ -110,7 +137,7 @@ prepare-data validate configs/captures.json
 
 ## 7. 固定背景并估算 GRN 需求
 
-从步骤 4 的报告统计本轮全部测试 MAWI 的可用 IP 字节量，固定该背景，按以下公式估算各条件所需目标：
+统计清单中本轮全部测试 MAWI 的可用 IP 字节量，固定该背景。使用步骤 3 的拆分结果时可查看 `data/split/mawi01/split.json` 中的 `partitions.test.ip_bytes`。按以下公式估算各条件所需目标：
 
 ```text
 所需 GRN IP 字节量 = 固定 MAWI IP 字节量 × r / (1-r)
